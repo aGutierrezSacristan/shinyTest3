@@ -3,7 +3,7 @@ import pandas as pd
 import numpy as np
 import plotly.express as px
 import openai
-import requests 
+import requests
 from io import BytesIO
 import io
 import contextlib
@@ -11,7 +11,7 @@ import contextlib
 # === CONFIGURACIÓN DE PÁGINA ===
 st.set_page_config(page_title="Dashboard Estudiantil", layout="wide")
 
-# === CARGAR DATOS ===
+# === CARGAR DATOS DESDE GOOGLE DRIVE ===
 @st.cache_data
 def load_data_from_gdrive(file_id: str) -> pd.DataFrame:
     url = f"https://drive.google.com/uc?id={file_id}&export=download"
@@ -76,7 +76,7 @@ fig = px.scatter(df_filtrado, x=col_x, y=col_y, color="Procedencia", title=f"{co
 st.plotly_chart(fig, use_container_width=True)
 
 # === CHAT INTELIGENTE USANDO OPENAI ===
-st.header("🤖 Chat con tus datos (compatible con Streamlit Cloud)")
+st.header("🤖 Chat con tus datos")
 
 st.markdown("Haz preguntas en lenguaje natural sobre los datos. Ejemplos:")
 st.markdown("""
@@ -86,24 +86,24 @@ st.markdown("""
 - Haz un resumen estadístico del PCAT.
 """)
 
-# Configurar la clave OpenAI
 openai.api_key = st.secrets["OPENAI_API_KEY"]
-
-# Entrada de usuario
 user_question = st.text_input("Tu pregunta")
 
-# Función que genera código con OpenAI
 def generate_code_from_question(question, df_sample):
-    prompt = f"""
-Actúa como un asistente de análisis de datos. Se te da un DataFrame llamado df con las siguientes columnas:
+    prompt = f\"\"\"
+Eres un asistente de análisis de datos en Python.
+
+Ya tienes cargado un DataFrame llamado `df` que contiene las siguientes columnas:
 
 {', '.join(df_sample.columns)}
 
+No debes volver a cargar datos desde archivos. Usa directamente `df` para hacer los cálculos.
+
 El usuario preguntó: "{question}"
 
-Devuelve solo el código Python necesario para responder esa pregunta. Usa pandas y guarda el resultado en una variable llamada 'resultado'.
-Si corresponde, usa plotly express para gráficas. No devuelvas explicaciones.
-"""
+Devuelve solo el código Python necesario para responder, y guarda el resultado en una variable llamada 'resultado'.
+Si el resultado es una visualización, usa plotly express. No incluyas comentarios ni explicaciones.
+\"\"\"
     response = openai.ChatCompletion.create(
         model="gpt-3.5-turbo",
         messages=[{"role": "user", "content": prompt}],
@@ -113,10 +113,13 @@ Si corresponde, usa plotly express para gráficas. No devuelvas explicaciones.
 
 if user_question:
     try:
-        code = generate_code_from_question(user_question, df_filtrado)
-        st.code(code, language="python")
+        raw_code = generate_code_from_question(user_question, df_filtrado)
 
-        # Ejecutar el código
+        code = raw_code.strip()
+        if code.startswith("```"):
+            code = code.split("```")[1] if "```" in code else code
+        code = code.replace("python", "").strip()
+
         local_vars = {"df": df_filtrado.copy(), "px": px, "pd": pd, "np": np}
         with contextlib.redirect_stdout(io.StringIO()) as f:
             exec(code, {}, local_vars)
