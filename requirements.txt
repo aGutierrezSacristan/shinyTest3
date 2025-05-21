@@ -1,6 +1,8 @@
 streamlit
 plotly
 pandas
+pandas-ai==2.3.16
+openai
 numpy
 requests
 statsmodels
