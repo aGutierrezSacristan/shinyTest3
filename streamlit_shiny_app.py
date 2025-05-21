@@ -90,7 +90,7 @@ openai.api_key = st.secrets["OPENAI_API_KEY"]
 user_question = st.text_input("Tu pregunta")
 
 def generate_code_from_question(question, df_sample):
-    prompt = f\"\"\"
+    prompt = f"""
 Eres un asistente de análisis de datos en Python.
 
 Ya tienes cargado un DataFrame llamado `df` que contiene las siguientes columnas:
