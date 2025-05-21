@@ -2,12 +2,9 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import plotly.express as px
-import requests
-from io import BytesIO
-from sklearn.linear_model import LinearRegression
-from sklearn.metrics import r2_score
-from pandasai import SmartDataframe
-from pandasai.llm.openai import OpenAI
+import openai
+import io
+import contextlib
 
 # === CONFIGURACIÓN DE PÁGINA ===
 st.set_page_config(page_title="Dashboard Estudiantil", layout="wide")
@@ -73,28 +70,61 @@ st.subheader("📈 Gráfico de Dispersión")
 fig = px.scatter(df_filtrado, x=col_x, y=col_y, color="Procedencia", title=f"{col_y} vs {col_x}")
 st.plotly_chart(fig, use_container_width=True)
 
-# === CHAT CON LOS DATOS ===
-st.header("🤖 Chat con tus datos")
+# === CHAT INTELIGENTE USANDO OPENAI ===
+st.header("🤖 Chat con tus datos (compatible con Streamlit Cloud)")
 
 st.markdown("Haz preguntas en lenguaje natural sobre los datos. Ejemplos:")
 st.markdown("""
 - ¿Cuál es el promedio del Índice General por Procedencia?
 - ¿Cuántos estudiantes hay por cada año de ingreso?
-- Haz un histograma del PCAT.
 - ¿Cuál es la nota más común en Biología?
+- Haz un resumen estadístico del PCAT.
 """)
 
-# Inicializar LLM
-llm = OpenAI(api_token=st.secrets["OPENAI_API_KEY"])
-sdf = SmartDataframe(df_filtrado, config={"llm": llm})
+# Configurar la clave OpenAI
+openai.api_key = st.secrets["OPENAI_API_KEY"]
 
-# Entrada del usuario
-user_input = st.text_input("Tu pregunta")
+# Entrada de usuario
+user_question = st.text_input("Tu pregunta")
 
-if user_input:
-    with st.spinner("Pensando..."):
-        try:
-            response = sdf.chat(user_input)
-            st.write(response)
-        except Exception as e:
-            st.error(f"Ocurrió un error al responder: {e}")
+# Función que genera código con OpenAI
+def generate_code_from_question(question, df_sample):
+    prompt = f"""
+Actúa como un asistente de análisis de datos. Se te da un DataFrame llamado df con las siguientes columnas:
+
+{', '.join(df_sample.columns)}
+
+El usuario preguntó: "{question}"
+
+Devuelve solo el código Python necesario para responder esa pregunta. Usa pandas y guarda el resultado en una variable llamada 'resultado'.
+Si corresponde, usa plotly express para gráficas. No devuelvas explicaciones.
+"""
+    response = openai.ChatCompletion.create(
+        model="gpt-3.5-turbo",
+        messages=[{"role": "user", "content": prompt}],
+        temperature=0,
+    )
+    return response.choices[0].message["content"]
+
+if user_question:
+    try:
+        code = generate_code_from_question(user_question, df_filtrado)
+        st.code(code, language="python")
+
+        # Ejecutar el código
+        local_vars = {"df": df_filtrado.copy(), "px": px, "pd": pd, "np": np}
+        with contextlib.redirect_stdout(io.StringIO()) as f:
+            exec(code, {}, local_vars)
+
+        resultado = local_vars.get("resultado", None)
+
+        if resultado is not None:
+            if hasattr(resultado, "to_plotly_json") or "plotly" in str(type(resultado)).lower():
+                st.plotly_chart(resultado, use_container_width=True)
+            else:
+                st.write(resultado)
+        else:
+            st.warning("No se generó ninguna variable llamada 'resultado'.")
+    except Exception as e:
+        st.error(f"Error al procesar tu pregunta: {e}")
+
