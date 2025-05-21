@@ -1,7 +1,7 @@
 streamlit
 plotly
 pandas
-pandas-ai==2.3.16
+pandas-ai
 openai
 numpy
 requests
