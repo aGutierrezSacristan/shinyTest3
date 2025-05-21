@@ -30,13 +30,6 @@ categoricas = [col for col in df.select_dtypes(include=["object", "category"]).c
 nota_map = {'A': 4, 'B': 3, 'C': 2, 'D': 1, 'F': 0}
 df[notas_cursos] = df[notas_cursos].apply(lambda col: col.map(lambda x: nota_map.get(str(x).strip().upper(), np.nan)))
 
-# === VALORES POR DEFECTO ===
-default_cat = "1st Fall Enrollment"
-default_val = "All Enrollment"
-default_proc = "Todas"
-default_x = "Índice General"
-default_y = "Índice Científico"
-
 # === SIDEBAR: CONTROLES ===
 with st.sidebar:
     st.header("📊 Filtros")
@@ -44,10 +37,10 @@ with st.sidebar:
     if st.button("🔄 Resetear filtros"):
         st.session_state.clear()
 
-    col_cat = st.selectbox("Filtrar por categoría", options=[default_cat] + sorted([c for c in categoricas if c != default_cat]), key="col_cat")
+    col_cat = st.selectbox("Filtrar por categoría", options=["1st Fall Enrollment"] + sorted([c for c in categoricas if c != "1st Fall Enrollment"]), key="col_cat")
     valores = sorted(df[col_cat].dropna().astype(str).unique())
-    if col_cat == default_cat:
-        valores = [default_val] + valores
+    if col_cat == "1st Fall Enrollment":
+        valores = ["All Enrollment"] + valores
     val_cat = st.selectbox(f"Valor en '{col_cat}'", valores, key="val_cat")
 
     val_proc = st.selectbox("Procedencia", options=["Todas"] + sorted(df["Procedencia"].dropna().astype(str).unique()), key="val_proc")
@@ -62,9 +55,9 @@ with st.sidebar:
 
 # === FILTRADO DE DATOS ===
 df_filtrado = df.copy()
-if col_cat == default_cat and val_cat != default_val:
+if col_cat == "1st Fall Enrollment" and val_cat != "All Enrollment":
     df_filtrado = df_filtrado[df_filtrado[col_cat].astype(str) == val_cat]
-elif col_cat != default_cat:
+elif col_cat != "1st Fall Enrollment":
     df_filtrado = df_filtrado[df_filtrado[col_cat].astype(str) == val_cat]
 if val_proc != "Todas":
     df_filtrado = df_filtrado[df_filtrado["Procedencia"].astype(str) == val_proc]
@@ -77,7 +70,6 @@ st.plotly_chart(fig, use_container_width=True)
 
 # === CHAT INTELIGENTE USANDO OPENAI ===
 st.header("🤖 Chat con tus datos")
-
 st.markdown("Haz preguntas en lenguaje natural sobre los datos. Ejemplos:")
 st.markdown("""
 - ¿Cuál es el promedio del Índice General por Procedencia?
@@ -90,12 +82,13 @@ openai.api_key = st.secrets["OPENAI_API_KEY"]
 user_question = st.text_input("Tu pregunta")
 
 def generate_code_from_question(question, df_sample):
+    columns_formatted = ', '.join([f'{{{{{col}}}}}' for col in df_sample.columns])
     prompt = f"""
 Eres un asistente de análisis de datos en Python.
 
 Ya tienes cargado un DataFrame llamado `df` que contiene las siguientes columnas:
 
-{', '.join(df_sample.columns)}
+{columns_formatted}
 
 No debes volver a cargar datos desde archivos. Usa directamente `df` para hacer los cálculos.
 
@@ -103,7 +96,7 @@ El usuario preguntó: "{question}"
 
 Devuelve solo el código Python necesario para responder, y guarda el resultado en una variable llamada 'resultado'.
 Si el resultado es una visualización, usa plotly express. No incluyas comentarios ni explicaciones.
-\"\"\"
+"""
     response = openai.ChatCompletion.create(
         model="gpt-3.5-turbo",
         messages=[{"role": "user", "content": prompt}],
