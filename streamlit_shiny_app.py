@@ -11,10 +11,13 @@ st.set_page_config(page_title="Dashboard Estudiantil", layout="wide")
 
 # === CARGAR DATOS ===
 @st.cache_data
-def load_data():
-    return pd.read_csv("dummy_estudiantes_dataset.csv", encoding="latin1")
+def load_data_from_gdrive(file_id: str) -> pd.DataFrame:
+    url = f"https://drive.google.com/uc?id={file_id}&export=download"
+    r = requests.get(url)
+    return pd.read_csv(BytesIO(r.content), encoding="latin1")
 
-df = load_data()
+FILE_ID = st.secrets["FILE_ID"]
+df = load_data_from_gdrive(FILE_ID)
 
 # === DEFINICIONES DE VARIABLES ===
 demograficas = ["Procedencia", "1st Fall Enrollment", "Índice General", "Índice Científico", "PCAT"]
