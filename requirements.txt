@@ -1,7 +1,7 @@
 streamlit
 plotly
 pandas
-openai
+openai==0.28
 numpy
 requests
 statsmodels
