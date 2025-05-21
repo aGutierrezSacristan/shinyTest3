@@ -5,6 +5,7 @@ import plotly.express as px
 import openai
 import io
 import contextlib
+import request
 
 # === CONFIGURACIÓN DE PÁGINA ===
 st.set_page_config(page_title="Dashboard Estudiantil", layout="wide")
