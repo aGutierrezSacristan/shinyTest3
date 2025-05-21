@@ -1,7 +1,6 @@
 streamlit
 plotly
 pandas
-pandas-ai
 openai
 numpy
 requests
