@@ -128,3 +128,4 @@ if user_question:
             st.warning("No se generó ninguna variable llamada 'resultado'.")
     except Exception as e:
         st.error(f"Error al procesar tu pregunta: {e}")
+
